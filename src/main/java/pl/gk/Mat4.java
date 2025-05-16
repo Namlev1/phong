@@ -81,7 +81,7 @@ public class Mat4 {
         return result;
     }
 
-    private static void translate(float[] matrix, float x, float y, float z) {
+    public static void translate(float[] matrix, float x, float y, float z) {
         float tx = matrix[0] * x + matrix[4] * y + matrix[8] * z + matrix[12];
         float ty = matrix[1] * x + matrix[5] * y + matrix[9] * z + matrix[13];
         float tz = matrix[2] * x + matrix[6] * y + matrix[10] * z + matrix[14];

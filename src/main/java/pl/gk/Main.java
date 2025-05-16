@@ -34,6 +34,8 @@ public class Main {
     private int vao;
     private int vbo;
     private int ebo;
+    float[] lightPosition = {2.0f, 2.0f, 2.0f};
+    float lightSpeed = 0.5f; // Zwiększona prędkość światła
 
     // Material ID
     private int materialId = 0;
@@ -80,14 +82,16 @@ public class Main {
             throw new RuntimeException("Failed to create the GLFW window");
         }
 
-        // Setup a key callback
+        // Light position
+
+        // Setup key callbacks
         glfwSetKeyCallback(window, (window, key, scancode, action, mods) -> {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
                 glfwSetWindowShouldClose(window, true);
             }
 
             // Change material with number keys
-            if (action == GLFW_PRESS) {
+            if (action == GLFW_PRESS || action == GLFW_REPEAT) {
                 if (key == GLFW_KEY_1) {
                     materialId = 0; // Metal
                     System.out.println("Material: Metal (kierunkowe odbicie)");
@@ -100,6 +104,33 @@ public class Main {
                 } else if (key == GLFW_KEY_4) {
                     materialId = 3; // Plastic
                     System.out.println("Material: Plastic (pomiędzy)");
+                }
+
+                // Move light position with arrow keys and WASD
+                if (key == GLFW_KEY_UP || key == GLFW_KEY_W) {
+                    lightPosition[1] += lightSpeed; // Move up
+                    System.out.println("Light position: (" + lightPosition[0] + ", " + lightPosition[1] + ", " + lightPosition[2] + ")");
+                } else if (key == GLFW_KEY_DOWN || key == GLFW_KEY_S) {
+                    lightPosition[1] -= lightSpeed; // Move down
+                    System.out.println("Light position: (" + lightPosition[0] + ", " + lightPosition[1] + ", " + lightPosition[2] + ")");
+                } else if (key == GLFW_KEY_LEFT || key == GLFW_KEY_A) {
+                    lightPosition[0] -= lightSpeed; // Move left
+                    System.out.println("Light position: (" + lightPosition[0] + ", " + lightPosition[1] + ", " + lightPosition[2] + ")");
+                } else if (key == GLFW_KEY_RIGHT || key == GLFW_KEY_D) {
+                    lightPosition[0] += lightSpeed; // Move right
+                    System.out.println("Light position: (" + lightPosition[0] + ", " + lightPosition[1] + ", " + lightPosition[2] + ")");
+                } else if (key == GLFW_KEY_PAGE_UP || key == GLFW_KEY_Q) {
+                    lightPosition[2] -= lightSpeed; // Move forward
+                    System.out.println("Light position: (" + lightPosition[0] + ", " + lightPosition[1] + ", " + lightPosition[2] + ")");
+                } else if (key == GLFW_KEY_PAGE_DOWN || key == GLFW_KEY_E) {
+                    lightPosition[2] += lightSpeed; // Move backward
+                    System.out.println("Light position: (" + lightPosition[0] + ", " + lightPosition[1] + ", " + lightPosition[2] + ")");
+                } else if (key == GLFW_KEY_R) {
+                    // Reset light position
+                    lightPosition[0] = 2.0f;
+                    lightPosition[1] = 2.0f;
+                    lightPosition[2] = 2.0f;
+                    System.out.println("Light position reset: (" + lightPosition[0] + ", " + lightPosition[1] + ", " + lightPosition[2] + ")");
                 }
             }
         });
@@ -223,11 +254,39 @@ public class Main {
     }
 
     private void loop() {
-        // Set up rotation variables
-        float angle = 0.0f;
-
         // Set up timing variables
         float lastTime = (float) glfwGetTime();
+
+        // Light position
+//        float[] lightPosition = {1.0f, 0.0f, 2.0f};
+
+        // Light visualization sphere
+        SphereGenerator lightSphere = new SphereGenerator(0.2f, 16, 16);
+        int lightVAO = glGenVertexArrays();
+        int lightVBO = glGenBuffers();
+        int lightEBO = glGenBuffers();
+
+        // Bind light sphere VAO
+        glBindVertexArray(lightVAO);
+
+        // Buffer light sphere vertices
+        glBindBuffer(GL_ARRAY_BUFFER, lightVBO);
+        glBufferData(GL_ARRAY_BUFFER, lightSphere.getVertices(), GL_STATIC_DRAW);
+
+        // Buffer light sphere indices
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, lightEBO);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, lightSphere.getIndices(), GL_STATIC_DRAW);
+
+        // Position attribute
+        glVertexAttribPointer(0, 3, GL_FLOAT, false, 6 * Float.BYTES, 0);
+        glEnableVertexAttribArray(0);
+
+        // Normal attribute
+        glVertexAttribPointer(1, 3, GL_FLOAT, false, 6 * Float.BYTES, 3 * Float.BYTES);
+        glEnableVertexAttribArray(1);
+
+        // Unbind VAO
+        glBindVertexArray(0);
 
         // Rendering loop
         while (!glfwWindowShouldClose(window)) {
@@ -236,50 +295,63 @@ public class Main {
             float deltaTime = currentTime - lastTime;
             lastTime = currentTime;
 
-            // Update rotation angle
-            angle += 30.0f * deltaTime; // 30 degrees per second
-
             // Clear the framebuffer
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             // Activate shader
             glUseProgram(shaderProgram);
 
-            // Update view position
-            float viewX = (float) Math.sin(Math.toRadians(angle)) * 3.0f;
-            float viewZ = (float) Math.cos(Math.toRadians(angle)) * 3.0f;
-            glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), viewX, 1.5f, viewZ);
-
-            // Create view matrix (camera)
+            // Set static camera position
             float[] viewMatrix = Mat4.lookAt(
-                    viewX, 1.5f, viewZ,  // camera position
+                    0.0f, 0.0f, 5.0f,     // camera position (static)
                     0.0f, 0.0f, 0.0f,     // camera target
                     0.0f, 1.0f, 0.0f      // up vector
             );
             int viewLoc = glGetUniformLocation(shaderProgram, "view");
             glUniformMatrix4fv(viewLoc, false, viewMatrix);
 
+            // Update view position
+            glUniform3f(glGetUniformLocation(shaderProgram, "viewPos"), 0.0f, 0.0f, 5.0f);
+
             // Create projection matrix
             float[] projMatrix = Mat4.perspective(45.0f, (float) WIDTH / HEIGHT, 0.1f, 100.0f);
             int projLoc = glGetUniformLocation(shaderProgram, "projection");
             glUniformMatrix4fv(projLoc, false, projMatrix);
 
-            // Create model matrix
+            // Create model matrix for sphere
             float[] modelMatrix = Mat4.identity();
             int modelLoc = glGetUniformLocation(shaderProgram, "model");
             glUniformMatrix4fv(modelLoc, false, modelMatrix);
 
             // Set light properties
-            glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"), 2.0f, 2.0f, 2.0f);
+            glUniform3f(glGetUniformLocation(shaderProgram, "lightPos"),
+                    lightPosition[0], lightPosition[1], lightPosition[2]);
             glUniform3f(glGetUniformLocation(shaderProgram, "lightColor"), 1.0f, 1.0f, 1.0f);
 
             // Set material properties based on materialId
             setMaterial(materialId);
 
-            // Draw the sphere
+            // Draw the main sphere
             glBindVertexArray(vao);
             SphereGenerator sphere = new SphereGenerator(1.0f, 32, 32);
             glDrawElements(GL_TRIANGLES, sphere.getIndexCount(), GL_UNSIGNED_INT, 0);
+
+            // Draw the light source visualization sphere
+            // Create model matrix for light
+            float[] lightModelMatrix = Mat4.identity();
+            Mat4.translate(lightModelMatrix, lightPosition[0], lightPosition[1], lightPosition[2]);
+            glUniformMatrix4fv(modelLoc, false, lightModelMatrix);
+
+            // Override material for light source (bright white)
+            glUniform3f(glGetUniformLocation(shaderProgram, "material.ambient"), 1.0f, 1.0f, 1.0f);
+            glUniform3f(glGetUniformLocation(shaderProgram, "material.diffuse"), 1.0f, 1.0f, 1.0f);
+            glUniform3f(glGetUniformLocation(shaderProgram, "material.specular"), 1.0f, 1.0f, 1.0f);
+            glUniform1f(glGetUniformLocation(shaderProgram, "material.shininess"), 32.0f);
+
+            // Draw light sphere
+            glBindVertexArray(lightVAO);
+            glDrawElements(GL_TRIANGLES, lightSphere.getIndexCount(), GL_UNSIGNED_INT, 0);
+
             glBindVertexArray(0);
 
             // Swap the color buffers
