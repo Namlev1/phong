@@ -47,8 +47,12 @@ public class ShaderSource {
                     "    vec3 norm = normalize(Normal);\n" +
                     "    vec3 lightDir = normalize(lightPos - FragPos);\n" +
                     "    \n" +
+                    "    // Calculate distance and attenuation\n" +
+                    "    float distance = length(lightPos - FragPos);\n" +
+                    "    float attenuation = 1.0 / (1.0 + 0.09 * distance + 0.032 * distance * distance);\n" +
+                    "    \n" +
                     "    // Ambient component\n" +
-                    "    vec3 ambient = material.ambient * lightColor;\n" +
+                    "    vec3 ambient = material.ambient * lightColor * 0.2; // Reduced ambient intensity\n" +
                     "    \n" +
                     "    // Diffuse component\n" +
                     "    float diff = max(dot(norm, lightDir), 0.0);\n" +
@@ -59,6 +63,10 @@ public class ShaderSource {
                     "    vec3 reflectDir = reflect(-lightDir, norm);\n" +
                     "    float spec = pow(max(dot(viewDir, reflectDir), 0.0), material.shininess);\n" +
                     "    vec3 specular = spec * material.specular * lightColor;\n" +
+                    "    \n" +
+                    "    // Apply attenuation to diffuse and specular components\n" +
+                    "    diffuse *= attenuation;\n" +
+                    "    specular *= attenuation;\n" +
                     "    \n" +
                     "    // Apply different materials\n" +
                     "    vec3 baseColor;\n" +
